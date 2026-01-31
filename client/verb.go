@@ -1,0 +1,27 @@
+package client
+
+import (
+	"context"
+	"httpclient/request"
+	"httpclient/response"
+)
+
+func (c *Client) Get(
+	ctx context.Context,
+	url string,
+	opts ...request.Option,
+) (*response.Response, error) {
+	req := request.New("GET", url, opts...)
+	return c.Do(ctx, req)
+}
+
+func (c *Client) Post(
+	ctx context.Context,
+	url string,
+	body any,
+	opts ...request.Option,
+) (*response.Response, error) {
+	opts = append(opts, request.WithBody(body))
+	req := request.New("POST", url, opts...)
+	return c.Do(ctx, req)
+}
