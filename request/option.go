@@ -2,9 +2,10 @@ package request
 
 import (
 	"fmt"
-	"httpclient/codec"
 	"net/http"
 	"net/url"
+
+	"httpclient/codec"
 )
 
 type Option func(*Request)
@@ -22,21 +23,23 @@ func New(method, u string, opts ...Option) *Request {
 	return r
 }
 
-func WithHeader(k, v string) Option {
+func WithHeader(key, value string) Option {
 	return func(r *Request) {
-		r.Header.Add(k, v)
+		r.Header.Set(key, value)
 	}
 }
 
-func WithCodec(c codec.Codec) Option {
+func WithHeaders(h map[string]string) Option {
 	return func(r *Request) {
-		r.Codec = c
+		for k, v := range h {
+			r.Header.Set(k, v)
+		}
 	}
 }
 
-func WithBody(body any) Option {
+func WithURLParam(key string, value any) Option {
 	return func(r *Request) {
-		r.Body = body
+		r.Query.Add(key, fmt.Sprint(value))
 	}
 }
 
@@ -48,12 +51,6 @@ func WithURLParams(params map[string]string) Option {
 	}
 }
 
-func WithURLParam(key string, value any) Option {
-	return func(r *Request) {
-		r.Query.Add(key, fmt.Sprint(value))
-	}
-}
-
 func WithURLValues(values url.Values) Option {
 	return func(r *Request) {
 		for k, vs := range values {
@@ -61,5 +58,24 @@ func WithURLValues(values url.Values) Option {
 				r.Query.Add(k, v)
 			}
 		}
+	}
+}
+
+func WithCodec(c codec.Codec) Option {
+	return func(r *Request) {
+		r.Codec = c
+	}
+}
+
+func WithBody(body any, c codec.Codec) Option {
+	return func(r *Request) {
+		r.Body = body
+		r.Codec = c
+	}
+}
+
+func WithStream() Option {
+	return func(r *Request) {
+		r.Stream = true
 	}
 }

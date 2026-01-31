@@ -3,99 +3,156 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
+	"httpclient/errx"
 	"io"
 	"net/http"
 
 	"httpclient"
+	"httpclient/middleware"
 	"httpclient/request"
 	"httpclient/response"
 	"httpclient/transport"
 )
 
 type Client struct {
-	transport transport.Transport
+	handler middleware.Handler
 }
 
-func New(
-	base transport.Transport,
-	mw ...transport.Middleware,
-) *Client {
+func New(t transport.Transport, mws ...middleware.Middleware) *Client {
 
-	t := base
-	for i := len(mw) - 1; i >= 0; i-- {
-		t = mw[i](t)
+	h := newBaseHandler(t)
+
+	// 倒序包裹 middleware
+	for i := len(mws) - 1; i >= 0; i-- {
+		h = mws[i](h)
 	}
 
-	return &Client{transport: t}
+	return &Client{
+		handler: h,
+	}
 }
 
-func NewDefault(
-	mw ...transport.Middleware,
-) *Client {
-	return New(
-		transport.New(http.DefaultClient),
-		mw...,
-	)
+func NewDefault(mws ...middleware.Middleware) *Client {
+	return New(transport.NewHTTPTransport(http.DefaultClient), mws...)
 }
 
-func (c *Client) Do(
-	ctx context.Context,
-	req *request.Request,
-) (*response.Response, error) {
+func newBaseHandler(t transport.Transport) middleware.Handler {
+	return func(ctx context.Context, req *request.Request) (*response.Response, error) {
 
-	var body io.Reader
-	if req.Body != nil {
-		if req.Codec == nil {
-			return nil, httpclient.ErrNoCodec
+		var body io.Reader
+		if req.Body != nil {
+			if req.Codec == nil {
+				return nil, errx.NewCodecNotExistError(errors.New("codec not exist"))
+			}
+
+			pr, pw := io.Pipe()
+
+			var logBuf bytes.Buffer
+			lw := &LimitWriter{W: &logBuf, N: 4 << 10} // 最多 4KB
+			tee := io.MultiWriter(pw, lw)
+
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				defer func() {
+					_ = pw.Close()
+				}()
+				if err := req.Codec.Encode(tee, req.Body); err != nil {
+					_ = pw.CloseWithError(err)
+				}
+			}()
+
+			body = pr
+			// ⚠️ 在“请求结束后”再等 done
+			go func() {
+				<-done
+				req.RawBody = logBuf.Bytes()
+			}()
 		}
-		b, err := req.Codec.Encode(req.Body)
+
+		httpReq, err := http.NewRequestWithContext(ctx, req.Method, req.URL, body)
 		if err != nil {
-			return nil, httpclient.ErrEncode
+			return nil, err
 		}
-		body = bytes.NewReader(b)
+
+		httpReq.Header = req.Header.Clone()
+
+		if req.Body != nil &&
+			req.Codec != nil &&
+			httpReq.Header.Get("Content-Type") == "" {
+			httpReq.Header.Set("Content-Type", req.Codec.ContentType())
+		}
+
+		httpResp, err := t.Do(ctx, httpReq)
+		if err != nil {
+			return nil, err
+		}
+
+		// ⭐⭐⭐ Stream 分支：不读 body，不 close
+		if req.Stream {
+			if httpResp.StatusCode >= http.StatusBadRequest {
+				return &response.Response{
+					StatusCode:   httpResp.StatusCode,
+					Header:       httpResp.Header.Clone(),
+					HTTPResponse: httpResp,
+					Stream:       httpResp.Body,
+				}, httpclient.ErrHTTPStatus
+			}
+
+			return &response.Response{
+				StatusCode:   httpResp.StatusCode,
+				Header:       httpResp.Header.Clone(),
+				HTTPResponse: httpResp,
+			}, nil
+		}
+
+		defer func() {
+			_ = httpResp.Body.Close()
+		}()
+
+		raw, err := io.ReadAll(httpResp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		resp := &response.Response{
+			StatusCode: httpResp.StatusCode,
+			Header:     httpResp.Header.Clone(),
+			RawBody:    raw,
+			Codec:      req.Codec,
+		}
+
+		if httpResp.StatusCode >= http.StatusBadRequest {
+			return resp, httpclient.ErrHTTPStatus
+		}
+
+		return resp, nil
+	}
+}
+
+func (c *Client) Do(ctx context.Context, req *request.Request) (*response.Response, error) {
+	return c.handler(ctx, req)
+}
+
+type LimitWriter struct {
+	W     io.Writer
+	N     int64
+	wrote int64
+}
+
+func (l *LimitWriter) Write(p []byte) (int, error) {
+	if l.wrote >= l.N {
+		return len(p), nil
 	}
 
-	httpReq, err := http.NewRequestWithContext(
-		ctx,
-		req.Method,
-		req.URL,
-		body,
-	)
-	if err != nil {
-		return nil, err
+	remain := l.N - l.wrote
+	if int64(len(p)) > remain {
+		p = p[:remain]
 	}
 
-	httpReq.Header = req.Header.Clone()
+	n, err := l.W.Write(p)
+	l.wrote += int64(n)
 
-	if req.Body != nil &&
-		req.Codec != nil &&
-		httpReq.Header.Get("Content-Type") == "" {
-		httpReq.Header.Set("Content-Type", req.Codec.ContentType())
-	}
-
-	httpResp, err := c.transport.Do(ctx, httpReq)
-	if err != nil {
-		return nil, httpclient.ErrNetwork
-	}
-	defer func() {
-		_ = httpResp.Body.Close()
-	}()
-
-	raw, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := &response.Response{
-		StatusCode: httpResp.StatusCode,
-		Header:     httpResp.Header.Clone(),
-		RawBody:    raw,
-		Codec:      req.Codec,
-	}
-
-	if httpResp.StatusCode >= 400 {
-		return resp, httpclient.ErrHTTPStatus
-	}
-
-	return resp, nil
+	return len(p), err
 }

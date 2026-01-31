@@ -2,20 +2,25 @@ package codec
 
 import (
 	"encoding/json"
+	"io"
 )
 
-type JSONCodec struct{}
+type JSON struct{}
 
-func (JSONCodec) Encode(v any) ([]byte, error) {
-	return json.Marshal(v)
+func NewJSON() *JSON {
+	return &JSON{}
 }
 
-func (JSONCodec) Decode(data []byte, v any) error {
-	return json.Unmarshal(data, v)
-}
-
-func (JSONCodec) ContentType() string {
+func (c *JSON) ContentType() string {
 	return "application/json"
 }
 
-var JSON = JSONCodec{}
+func (c *JSON) Encode(w io.Writer, v any) error {
+	enc := json.NewEncoder(w)
+	return enc.Encode(v)
+}
+
+func (c *JSON) Decode(r io.Reader, v any) error {
+	dec := json.NewDecoder(r)
+	return dec.Decode(v)
+}
