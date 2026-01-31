@@ -3,13 +3,13 @@ package test
 import (
 	"context"
 	"fmt"
-	"httpclient/middleware"
-	"httpclient/request"
-	"httpclient/response"
 	"testing"
 	"time"
 
-	"httpclient/client"
+	"github.com/imattdu/httpclient/client"
+	"github.com/imattdu/httpclient/middleware"
+	"github.com/imattdu/httpclient/request"
+	"github.com/imattdu/httpclient/response"
 )
 
 func TestJSONCodec_EncodeDecode(t *testing.T) {

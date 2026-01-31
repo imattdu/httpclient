@@ -25,7 +25,7 @@ func (e *Error) Error() string {
 	if e.Err != nil {
 		return e.Err.Error()
 	}
-	return fmt.Sprintf("httpclient error: %s", e.Kind)
+	return fmt.Sprintf("github.com/imattdu/httpclient error: %s", e.Kind)
 }
 
 func (e *Error) Unwrap() error {

@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 
-	"httpclient/codec"
-	"httpclient/request"
-	"httpclient/response"
+	"github.com/imattdu/httpclient/codec"
+	"github.com/imattdu/httpclient/request"
+	"github.com/imattdu/httpclient/response"
 )
 
 func (c *Client) Get(ctx context.Context, url string, opts ...request.Option) (*response.Response, error) {

@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"httpclient/errx"
 	"io"
 	"net/http"
 
-	"httpclient"
-	"httpclient/middleware"
-	"httpclient/request"
-	"httpclient/response"
-	"httpclient/transport"
+	"github.com/imattdu/httpclient"
+	"github.com/imattdu/httpclient/errx"
+	"github.com/imattdu/httpclient/middleware"
+	"github.com/imattdu/httpclient/request"
+	"github.com/imattdu/httpclient/response"
+	"github.com/imattdu/httpclient/transport"
 )
 
 type Client struct {

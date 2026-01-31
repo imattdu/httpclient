@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"httpclient/request"
-	"httpclient/response"
+	"github.com/imattdu/httpclient/request"
+	"github.com/imattdu/httpclient/response"
 )
 
 type RetryConfig struct {

@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"httpclient/codec"
+	"github.com/imattdu/httpclient/codec"
 )
 
 type Response struct {

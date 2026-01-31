@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"httpclient/codec"
+	"github.com/imattdu/httpclient/codec"
 )
 
 type Option func(*Request)
