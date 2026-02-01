@@ -5,8 +5,9 @@ import "time"
 // Config 表示 httpclient 的“行为策略”
 // 绝不表示状态
 type Config struct {
-	Timeout       *time.Duration `yaml:"timeout"`
-	DefaultStream *bool          `yaml:"default_stream"`
+	Timeout            *time.Duration `yaml:"timeout"`
+	RequestBodyStream  *bool          `yaml:"request_body_stream"`
+	ResponseBodyStream *bool          `yaml:"response_body_stream"`
 }
 
 func Default() *Config {
@@ -28,8 +29,11 @@ func Merge(base, override *Config) *Config {
 		if override.Timeout != nil {
 			c.Timeout = override.Timeout
 		}
-		if override.DefaultStream != nil {
-			c.DefaultStream = override.DefaultStream
+		if override.RequestBodyStream != nil {
+			c.RequestBodyStream = override.RequestBodyStream
+		}
+		if override.ResponseBodyStream != nil {
+			c.ResponseBodyStream = override.ResponseBodyStream
 		}
 	}
 
@@ -38,8 +42,10 @@ func Merge(base, override *Config) *Config {
 
 // EffectiveConfig client / middleware 直接使用
 type EffectiveConfig struct {
-	Timeout       time.Duration
-	DefaultStream bool
+	Timeout            time.Duration
+	DefaultStream      bool
+	RequestBodyStream  bool
+	ResponseBodyStream bool
 }
 
 func toEffective(c *Config) EffectiveConfig {
@@ -53,8 +59,11 @@ func toEffective(c *Config) EffectiveConfig {
 		ec.Timeout = *c.Timeout
 	}
 
-	if c.DefaultStream != nil {
-		ec.DefaultStream = *c.DefaultStream
+	if c.RequestBodyStream != nil {
+		ec.RequestBodyStream = *c.RequestBodyStream
+	}
+	if c.ResponseBodyStream != nil {
+		ec.ResponseBodyStream = *c.ResponseBodyStream
 	}
 
 	return ec

@@ -23,11 +23,13 @@ func TestJSONCodec_EncodeDecode(t *testing.T) {
 			Timeout: &timeout,
 		}))
 
-	_, err := cli.PostJSON(context.Background(), "http://5ea93d9e-355e-4572-a80d-48780f7b4397.mock.pstmn.io/go-web-v2/ping",
+	res, err := cli.PostJSON(context.Background(), "http://wwww1.baidu.com",
 		map[string]interface{}{
 			"name": "matt",
 		})
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+
+	fmt.Printf("77%#v\n", string(res.RawBody))
 }

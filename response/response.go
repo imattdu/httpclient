@@ -3,7 +3,7 @@ package response
 import (
 	"bytes"
 	"errors"
-	"io"
+	"github.com/imattdu/httpclient/errx"
 	"net/http"
 
 	"github.com/imattdu/httpclient/codec"
@@ -13,7 +13,7 @@ type Response struct {
 	StatusCode int
 	Header     http.Header
 	RawBody    []byte
-	Stream     io.ReadCloser // stream 响应
+	Stream     bool
 	Codec      codec.Codec
 
 	HTTPResponse *http.Response
@@ -24,9 +24,8 @@ func (r *Response) Decode(v any) error {
 		return nil
 	}
 
-	// ❌ stream 响应不允许在这里 decode
-	if r.Stream != nil {
-		return errors.New("cannot Decode stream response; consume Stream directly")
+	if r.Stream {
+		return errx.NewDecodeError(errors.New("cannot Decode stream response; consume Stream directly"))
 	}
 
 	if r.RawBody == nil {

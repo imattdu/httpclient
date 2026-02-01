@@ -23,47 +23,66 @@ func newBaseHandler(c *Client) func(context.Context, *request.Request) (*respons
 			defer cancel()
 		}
 
+		result := &response.Response{
+			Codec:  req.Codec,
+			Stream: cfg.ResponseBodyStream,
+		}
 		var body io.Reader
 		// 用来记录 body（只用于日志）
 		var recordBuf bytes.Buffer
 		if req.Body != nil {
 			if req.Codec == nil {
-				return nil, errx.NewCodecNotExistError(errors.New("codec not exist"))
+				return result, errx.NewCodecNotExistError(errors.New("codec not exist"))
 			}
 
-			// ⚠️ 建议限制记录大小，防止大 body 打日志
+			// 旁路记录（限流）
 			recordWriter := &LimitWriter{
 				W: &recordBuf,
-				N: 8 * 1024, // 只记录前 8KB，足够定位问题
+				N: 8 * 1024,
 			}
+			if cfg.RequestBodyStream {
+				pr, pw := io.Pipe()
 
-			pr, pw := io.Pipe()
+				// Encode 写入两个地方：
+				// 1. pw → HTTP client
+				// 2. recordWriter → 日志旁路
+				mw := io.MultiWriter(pw, recordWriter)
 
-			// Encode 写入两个地方：
-			// 1. pw → HTTP client
-			// 2. recordWriter → 日志旁路
-			mw := io.MultiWriter(pw, recordWriter)
+				go func() {
+					// ⚠️ 只能在“正常完成”时 Close
+					// Encode 出错必须 CloseWithError
+					defer func() {
+						_ = pw.Close()
+					}()
 
-			go func() {
-				// ⚠️ 只能在“正常完成”时 Close
-				// Encode 出错必须 CloseWithError
-				defer func() {
-					_ = pw.Close()
+					if err := req.Codec.Encode(mw, req.Body); err != nil {
+						_ = pw.CloseWithError(err)
+						return
+					}
 				}()
 
-				if err := req.Codec.Encode(mw, req.Body); err != nil {
-					_ = pw.CloseWithError(err)
-					return
-				}
-			}()
+				// pr 只给 HTTP client
+				body = pr
 
-			// pr 只给 HTTP client
-			body = pr
+			} else {
+				// 用于 Encode 的完整缓冲
+				var buf bytes.Buffer
+
+				// Encode 只写一次到内存
+				if err := req.Codec.Encode(&buf, req.Body); err != nil {
+					return result, errx.NewEncodeError(err)
+				}
+				// HTTP body：直接用 bytes.Reader
+				body = bytes.NewReader(buf.Bytes())
+
+				_, _ = recordWriter.Write(buf.Bytes())
+				req.RawBody = recordBuf.Bytes()
+			}
 		}
 
 		httpReq, err := http.NewRequestWithContext(ctx, req.Method, req.URL, body)
 		if err != nil {
-			return nil, errx.NewBuildRequestError(err)
+			return result, errx.NewBuildRequestError(err)
 		}
 
 		httpReq.Header = req.Header.Clone()
@@ -71,14 +90,15 @@ func newBaseHandler(c *Client) func(context.Context, *request.Request) (*respons
 		resp, err := c.transport.Do(ctx, httpReq)
 		req.RawBody = recordBuf.Bytes()
 		if err != nil {
-			return nil, errx.NewNetworkError(err)
+			return result, errx.NewNetworkError(err)
 		}
-		if cfg.DefaultStream {
-			return &response.Response{
-				StatusCode: resp.StatusCode,
-				Header:     resp.Header.Clone(),
-				Codec:      req.Codec,
-			}, nil
+		if resp != nil {
+			result.StatusCode = resp.StatusCode
+			result.Header = resp.Header
+		}
+		if cfg.ResponseBodyStream {
+			result.HTTPResponse = resp
+			return result, nil
 		}
 
 		defer func() {
@@ -86,16 +106,8 @@ func newBaseHandler(c *Client) func(context.Context, *request.Request) (*respons
 		}()
 
 		raw, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, errx.NewReadBodyError(err)
-		}
-
-		return &response.Response{
-			StatusCode: resp.StatusCode,
-			Header:     resp.Header.Clone(),
-			RawBody:    raw,
-			Codec:      req.Codec,
-		}, nil
+		result.RawBody = raw
+		return result, err
 	}
 }
 
