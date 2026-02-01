@@ -1,0 +1,16 @@
+# 当前配置版本（用于 debug / 排查）
+version: "v2024-09-01"
+
+# 全局默认配置（所有请求的兜底）
+global:
+  # 请求超时（支持 Go time.Duration 格式）
+  timeout: 3000ms
+
+  # 是否默认使用流式响应
+  default_stream: false
+
+# 按服务粒度配置（service 通常是 host）
+services:
+  5ea93d9e-355e-4572-a80d-48780f7b4397.mock.pstmn.io:
+    timeout: 500ms
+    default_stream: false

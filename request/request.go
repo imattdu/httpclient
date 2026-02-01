@@ -2,6 +2,7 @@ package request
 
 import (
 	"errors"
+	"github.com/imattdu/httpclient/config"
 	"net/http"
 	"net/url"
 
@@ -18,6 +19,8 @@ type Request struct {
 
 	Codec  codec.Codec
 	Stream bool // ⭐ 是否流式
+
+	Config *config.Config
 }
 
 var (
@@ -58,4 +61,13 @@ func (r *Request) BuildURL() (string, error) {
 	u.RawQuery = q.Encode()
 
 	return u.String(), nil
+}
+
+func (r *Request) Context() config.RequestContext {
+	return config.RequestContext{
+		URL:     r.URL,
+		Headers: r.Header,
+
+		Override: r.Config,
+	}
 }

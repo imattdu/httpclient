@@ -3,37 +3,28 @@ package test
 import (
 	"context"
 	"fmt"
-	"testing"
-	"time"
 
 	"github.com/imattdu/httpclient/client"
+	"github.com/imattdu/httpclient/config"
 	"github.com/imattdu/httpclient/middleware"
-	"github.com/imattdu/httpclient/request"
-	"github.com/imattdu/httpclient/response"
+	"testing"
+	"time"
 )
 
 func TestJSONCodec_EncodeDecode(t *testing.T) {
-	cli := client.NewDefault(middleware.Logger(),
-		middleware.Retry(middleware.RetryConfig{
-			MaxRetries: 3,
-			Interval:   time.Second,
-			RetryIf: func(ctx context.Context, req *request.Request, resp *response.Response, err error) bool {
-				return false
-			},
-		}))
-
-	type A struct {
-		Name string `json:"name"`
+	if err := config.Init(config.WithConfigFile("/Users/matt/workspace/go/src/httpclient/test/httpclient.yaml")); err != nil {
+		fmt.Println(err.Error())
 	}
+	timeout := time.Second * 10
+	cli := client.NewDefault(client.WithMiddleware(middleware.Logger()), client.WithConfig(&config.Config{
+		Timeout: &timeout,
+	}))
 
-	resp, err := cli.PostJSON(context.Background(), "https://1u71583ze0m4.mock.hoppscotch.io/ping/users",
-		map[string]string{
-			"foo": "bar",
-		})
+	_, err := cli.Get(context.Background(), "http://5ea93d9e-355e-4572-a80d-48780f7b4397.mock.pstmn.io/go-web-v2/ping") //map[string]string{
+	//	"foo": "bar",
+	//})
+
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		fmt.Println(err.Error())
 	}
-	var a A
-	_ = resp.Decode(&a)
-	fmt.Println(resp, a)
 }
