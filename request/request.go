@@ -16,9 +16,7 @@ type Request struct {
 	Header  http.Header
 	Body    any
 	RawBody []byte
-
-	Codec  codec.Codec
-	Stream bool // ⭐ 是否流式
+	Codec   codec.Codec
 
 	Config *config.Config
 }

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/imattdu/httpclient/errx"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -53,12 +54,12 @@ func Init(opts ...InitOption) error {
 	if cfg.filePath != "" {
 		data, err := os.ReadFile(cfg.filePath)
 		if err != nil {
-			return err
+			return errx.NewInitConfigError(err)
 		}
 
 		var snap Snapshot
 		if err := yaml.Unmarshal(data, &snap); err != nil {
-			return err
+			return errx.NewInitConfigError(err)
 		}
 
 		Apply(&snap)

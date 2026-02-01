@@ -5,13 +5,16 @@ import "fmt"
 type ErrorKind string
 
 const (
-	ErrTimeout ErrorKind = "timeout"
-	ErrNetwork ErrorKind = "network"
-	ErrHTTP    ErrorKind = "http"
-	ErrEncode  ErrorKind = "encode"
-	ErrDecode  ErrorKind = "decode"
-	ErrConfig  ErrorKind = "config"
-	ErrCodec   ErrorKind = "codec"
+	ErrInitConfig ErrorKind = "initConfig"
+
+	ErrTimeout  ErrorKind = "timeout"
+	ErrNetwork  ErrorKind = "network"
+	ErrHTTP     ErrorKind = "http"
+	ErrReadBody ErrorKind = "readBody"
+
+	ErrCodecNotExist ErrorKind = "codecNotExist"
+
+	ErrBuildRequest ErrorKind = "buildRequest"
 )
 
 type Error struct {
@@ -25,7 +28,7 @@ func (e *Error) Error() string {
 	if e.Err != nil {
 		return e.Err.Error()
 	}
-	return fmt.Sprintf("github.com/imattdu/httpclient error: %s", e.Kind)
+	return fmt.Sprintf("kind=: %s,error: %s", e.Kind, e.Err.Error())
 }
 
 func (e *Error) Unwrap() error {

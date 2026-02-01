@@ -13,7 +13,7 @@ import (
 func Logger() Middleware {
 	return func(next Handler) Handler {
 		return func(ctx context.Context, req *request.Request) (*response.Response, error) {
-			fmt.Println("log")
+			fmt.Println("-log-开始请求--")
 			start := time.Now()
 			resp, err := next(ctx, req)
 
@@ -22,7 +22,7 @@ func Logger() Middleware {
 				"cost":     time.Since(start).Milliseconds(),
 			}
 			msg, _ := json.Marshal(logMap)
-			fmt.Println("log", string(msg))
+			fmt.Println("-log-请求结束--||", string(msg))
 
 			return resp, err
 		}

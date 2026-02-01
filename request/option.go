@@ -73,9 +73,3 @@ func WithBody(body any, c codec.Codec) Option {
 		r.Codec = c
 	}
 }
-
-func WithStream() Option {
-	return func(r *Request) {
-		r.Stream = true
-	}
-}

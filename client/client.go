@@ -2,23 +2,22 @@ package client
 
 import (
 	"context"
-	"github.com/imattdu/httpclient/config"
-	"github.com/imattdu/httpclient/request"
-	"github.com/imattdu/httpclient/response"
-	"io"
 	"net/http"
 
+	"github.com/imattdu/httpclient/config"
 	"github.com/imattdu/httpclient/middleware"
+	"github.com/imattdu/httpclient/request"
+	"github.com/imattdu/httpclient/response"
 	"github.com/imattdu/httpclient/transport"
 )
 
 type Client struct {
-	handler middleware.Handler
-
 	transport   transport.Transport
+	handler     middleware.Handler
 	middlewares []middleware.Middleware
-	config      *config.Config
-	resolver    config.Resolver
+
+	config   *config.Config
+	resolver config.Resolver
 }
 
 func New(t transport.Transport, opts ...Option) *Client {
@@ -48,26 +47,8 @@ func NewDefault(opts ...Option) *Client {
 	return New(transport.NewHTTPTransport(http.DefaultClient), opts...)
 }
 
-type LimitWriter struct {
-	W     io.Writer
-	N     int64
-	wrote int64
-}
-
-func (l *LimitWriter) Write(p []byte) (int, error) {
-	if l.wrote >= l.N {
-		return len(p), nil
-	}
-
-	remain := l.N - l.wrote
-	if int64(len(p)) > remain {
-		p = p[:remain]
-	}
-
-	n, err := l.W.Write(p)
-	l.wrote += int64(n)
-
-	return len(p), err
+func (c *Client) Do(ctx context.Context, req *request.Request) (*response.Response, error) {
+	return c.handler(ctx, req)
 }
 
 func (c *Client) resolveConfig(req *request.Request) config.EffectiveConfig {
@@ -83,8 +64,4 @@ func (c *Client) resolveConfig(req *request.Request) config.EffectiveConfig {
 	}
 
 	return c.resolver.Resolve(ctx)
-}
-
-func (c *Client) Do(ctx context.Context, req *request.Request) (*response.Response, error) {
-	return c.handler(ctx, req)
 }

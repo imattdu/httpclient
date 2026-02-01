@@ -1,36 +1,22 @@
 package errx
 
-import "errors"
-
-var (
-	ErrNoCodecProvided = errors.New("no codec provided")
-	ErrHTTPStatus      = errors.New("http status error")
-)
-
-func NewConfigError(err error) *Error {
+func NewInitConfigError(err error) *Error {
 	return &Error{
-		Kind: ErrConfig,
-		Err:  err,
-	}
-}
-
-func NewEncodeError(err error) *Error {
-	return &Error{
-		Kind: ErrEncode,
-		Err:  err,
-	}
-}
-
-func NewDecodeError(err error) *Error {
-	return &Error{
-		Kind: ErrDecode,
+		Kind: ErrInitConfig,
 		Err:  err,
 	}
 }
 
 func NewCodecNotExistError(err error) *Error {
 	return &Error{
-		Kind: ErrCodec,
+		Kind: ErrCodecNotExist,
+		Err:  err,
+	}
+}
+
+func NewBuildRequestError(err error) *Error {
+	return &Error{
+		Kind: ErrBuildRequest,
 		Err:  err,
 	}
 }
@@ -55,5 +41,12 @@ func NewHTTPError(status int, body []byte, err error) *Error {
 		StatusCode: status,
 		Body:       body,
 		Err:        err,
+	}
+}
+
+func NewReadBodyError(err error) *Error {
+	return &Error{
+		Kind: ErrReadBody,
+		Err:  err,
 	}
 }
